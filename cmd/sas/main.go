@@ -3,8 +3,10 @@ package main
 import (
 	"acuser/cmd/sas/app"
 	"acuser/pkg/core/services"
+	"acuser/pkg/core/token"
 	"context"
 	"flag"
+	"github.com/dsurush/jwt/pkg/jwt"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/julienschmidt/httprouter"
 	"log"
@@ -28,9 +30,10 @@ func main() {
 	}
 
 	svc := services.NewUserSvc(pool)
-	server := app.NewMainServer(pool, router, svc)
-
+	tokenSvc := token.NewTokenSvc(svc, []byte(`surush`))
+	secret := jwt.Secret(`surush`)
+	server := app.NewMainServer(pool, router, svc, secret, tokenSvc)
 	server.Start()
 	
-	http.ListenAndServe(addr, server)
+	panic(http.ListenAndServe(addr, server))
 }

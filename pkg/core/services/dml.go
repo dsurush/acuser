@@ -10,3 +10,7 @@ const removeUserByLoginDml = `update users set remove = false where login = ($1)
 
 const getUserListDml = `Select u.id, u.name, u.surname, u.login, u.password, u.address, u.email, u.phone, u.remove, r.name from users u
 inner join roles r on u.role_id = r.id`
+
+const getUsersDml = `Select u.name, u.surname, u.login, u.address, u.email, u.phone, r.name 
+from users u
+inner join roles r on u.role_id = r.id;`

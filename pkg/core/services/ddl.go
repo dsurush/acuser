@@ -5,7 +5,7 @@ const usersDDL  =  `create table if not exists users (
     name varchar(30) not null,
     surname varchar(30) not null,
     login varchar(30) not null unique,
-    password varchar(30) not null check ( length(password) > 4 ),
+    password text not null,
     address varchar(30) not null,
     email varchar(30) not null,
     phone varchar(30) not null,

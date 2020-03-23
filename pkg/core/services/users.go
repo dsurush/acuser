@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"golang.org/x/crypto/bcrypt"
 	"log"
 )
 
@@ -38,7 +39,14 @@ func (receiver *UserSvc) Save(User models.User) (err error){
 		return err
 	}
 	defer conn.Release()
-	_, err = conn.Exec(context.Background(), userSaveDml, User.Name, User.Surname, User.Login, User.Password, User.Address, User.Email, User.Phone, User.Role, User.Remove)
+	//log.Printf("User Pass = %s\n", User.Password)
+	password, err := bcrypt.GenerateFromPassword([]byte(User.Password), bcrypt.DefaultCost)
+	//log.Printf("Pass = %s\n", password)
+	if err != nil {
+		err = errors.New("server error")
+		return
+	}
+	_, err = conn.Exec(context.Background(), userSaveDml, User.Name, User.Surname, User.Login, password, User.Address, User.Email, User.Phone, User.Role, User.Remove)
 	if err != nil {
 		log.Print("can't add to db")
 		return err
@@ -59,7 +67,7 @@ func (receiver *UserSvc) GetUserByLogin(login string) (User models.User, err err
 		&User.Name,
 		&User.Surname,
 		&User.Login,
-		&User.Password,
+		&User.Password,  ///TODO without Password
 		&User.Address,
 		&User.Email,
 		&User.Phone,
@@ -103,7 +111,7 @@ func (receiver *UserSvc) GetUserList() (users []models.User, err error){
 	defer rows.Close()
 	for rows.Next(){
 		User := models.User{}
-		rows.Scan(
+		err2 := rows.Scan(
 			&User.Id,
 			&User.Name,
 			&User.Surname,
@@ -115,6 +123,73 @@ func (receiver *UserSvc) GetUserList() (users []models.User, err error){
 			&User.Remove,
 			&User.Role,
 		)
+		///
+		if err2 != nil {
+			fmt.Printf("can't read from db %e", err)
+			return
+		}
+		//
+		users = append(users, User)
+	}
+	if rows.Err() != nil {
+		log.Printf("rows err %s", err)
+		return nil, rows.Err()
+	}
+	return
+}
+
+func (receiver *UserSvc) SaveUser(User models.User) (dto models.UserDTO, err error){
+	conn, err := receiver.pool.Acquire(context.Background())
+	if err != nil {
+		return
+	}
+	defer conn.Release()
+	password, err := bcrypt.GenerateFromPassword([]byte(User.Password), bcrypt.DefaultCost)
+	_, err = conn.Exec(context.Background(), userSaveDml, User.Name, User.Surname, User.Login, password, User.Address, User.Email, User.Phone, User.Role, User.Remove)
+	if err != nil {
+		log.Print("can't add to db")
+		return
+	}
+	dto.Name = User.Name
+	dto.Surname = User.Surname
+	dto.Login =	User.Login
+	dto.Address = User.Address
+	dto.Email = 	User.Email
+	dto.Phone =	User.Phone
+	dto.Role = User.Role
+	return dto, nil
+}
+
+func (receiver *UserSvc) GetUsers() (users []models.UserDTO, err error){
+	conn, err := receiver.pool.Acquire(context.Background())
+	if err != nil {
+		log.Printf("can't get connection %e", err)
+		return
+	}
+	defer conn.Release()
+	rows, err := conn.Query(context.Background(), getUsersDml)
+	if err != nil {
+		fmt.Printf("can't read user rows %e", err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next(){
+		User := models.UserDTO{}
+		err2 := rows.Scan(
+			&User.Name,
+			&User.Surname,
+			&User.Login,
+			&User.Address,
+			&User.Email,
+			&User.Phone,
+			&User.Role,
+		)
+		///
+		if err2 != nil {
+			fmt.Printf("can't read from db %e", err)
+			return
+		}
+		//
 		users = append(users, User)
 	}
 	if rows.Err() != nil {
